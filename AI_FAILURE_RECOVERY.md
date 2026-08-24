@@ -43,7 +43,7 @@ BACKUP="$(sudo cat /var/backups/new-api-production/original_backup)"
 sudo operations/scripts/rollback-production.sh --full "$BACKUP"
 ```
 
-The rollback script first creates a pre-rollback rescue snapshot. If the restored version fails health checks, it puts the pre-rollback state back automatically.
+The rollback script first creates a pre-rollback rescue snapshot. If any command fails or the restored version fails its health/database checks, an exit trap puts the pre-rollback binary and, in full mode, data directory back before restarting the container.
 
 ## 4. Diagnose by symptom
 

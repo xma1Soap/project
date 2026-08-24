@@ -8,7 +8,8 @@ Type=simple
 User=channel-controller
 Group=channel-controller
 WorkingDirectory=/opt/channel-quota-controller
-ExecStart=/opt/channel-quota-controller/venv/bin/python -m channel_quota_controller --config /etc/channel-quota-controller/config.json --channels /var/lib/channel-quota-controller/channels.json --events /var/lib/channel-quota-controller/events.jsonl --state /var/lib/channel-quota-controller/state.json --audit /var/log/channel-quota-controller/audit.jsonl --lock /run/channel-quota-controller/controller.lock
+EnvironmentFile=/etc/channel-quota-controller/gensoukyou.env
+ExecStart=/opt/channel-quota-controller/venv/bin/gensoukyou-channel-controller --config /etc/channel-quota-controller/config.json --environment production --state /var/lib/channel-quota-controller/state.json --audit /var/log/channel-quota-controller/audit.jsonl --probe-history /var/lib/channel-quota-controller/probe-history.json --lock /run/channel-quota-controller/controller.lock
 Restart=on-failure
 RestartSec=10
 NoNewPrivileges=true
@@ -19,4 +20,3 @@ ReadWritePaths=/var/lib/channel-quota-controller /var/log/channel-quota-controll
 
 [Install]
 WantedBy=multi-user.target
-

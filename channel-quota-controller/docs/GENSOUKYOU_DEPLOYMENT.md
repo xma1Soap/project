@@ -76,6 +76,12 @@ SSH 隧道。
 `--confirm-live-actions`、命令行 `--confirm-production-host gensoukyou.xyz`。
 缺少任意一项都会强制 dry-run。
 
+仓库提供的 systemd 服务必须使用 `gensoukyou-channel-controller` 入口，并从
+`/etc/channel-quota-controller/gensoukyou.env` 读取上述三个环境变量。默认服务文件只带
+`--environment production`，不带两个 live 确认参数，因此只能连接主站做 dry-run 观察，
+不会写入渠道或路由状态。`python -m channel_quota_controller` 是本地 JSON 模拟入口，
+不得用于主站服务。
+
 ## 当前配置的限制
 
 `examples/gensoukyou.glm.production-dry-run.json` 只列出已知出现额度错误的 #86/#87，

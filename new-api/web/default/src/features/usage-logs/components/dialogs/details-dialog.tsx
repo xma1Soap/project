@@ -41,7 +41,6 @@ import { Label } from '@/components/ui/label'
 import { Dialog } from '@/components/dialog'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
 import { DynamicPricingBreakdown } from '@/features/pricing/components/dynamic-pricing-breakdown'
-import type { UsageLog } from '../../data/schema'
 import {
   parseLogOther,
   getParamOverrideActionLabel,
@@ -59,7 +58,7 @@ import {
   isPerCallBilling,
   isTimingLogType,
 } from '../../lib/utils'
-import type { LogOtherData } from '../../types'
+import type { LogOtherData, UsageLog } from '../../types'
 
 // Maps a channel-update changed-field token (as recorded by the backend audit)
 // to its i18n label key for display in the audit details.

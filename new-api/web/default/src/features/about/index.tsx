@@ -162,6 +162,7 @@ export function About() {
           src={rawContent}
           className='h-[calc(100vh-3.5rem)] w-full border-0'
           title={t('About')}
+          sandbox='allow-scripts allow-forms allow-popups'
         />
       </PublicLayout>
     )

@@ -43,7 +43,6 @@ import {
 } from '@/components/ui/tooltip'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
 import { LOG_TYPE_ALL_VALUE } from '../../constants'
-import type { UsageLog } from '../../data/schema'
 import {
   formatModelName,
   getFirstResponseTimeColor,
@@ -60,7 +59,7 @@ import {
   getLogTypeConfig,
   isPerCallBilling,
 } from '../../lib/utils'
-import type { LogOtherData } from '../../types'
+import type { LogOtherData, UsageLog } from '../../types'
 import { DetailsDialog } from '../dialogs/details-dialog'
 import { ModelBadge } from '../model-badge'
 import { useUsageLogsContext } from '../usage-logs-provider'

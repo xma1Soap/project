@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -41,4 +43,28 @@ func TestShouldRetryNeverSplicesAnActiveStream(t *testing.T) {
 	_, writeErr := ctx.Writer.Write([]byte("data"))
 	require.NoError(t, writeErr)
 	require.False(t, shouldRetry(ctx, err, 2))
+}
+
+func TestQuotaErrorBypassesLegacyWholeChannelAutoDisable(t *testing.T) {
+	previous := common.AutomaticDisableChannelEnabled
+	common.AutomaticDisableChannelEnabled = true
+	t.Cleanup(func() { common.AutomaticDisableChannelEnabled = previous })
+
+	quotaErr := types.NewErrorWithStatusCode(
+		errors.New("quota exhausted"),
+		types.ErrorCodeBadResponseStatusCode,
+		http.StatusUnauthorized,
+	)
+	require.True(t, service.ShouldDisableChannel(quotaErr))
+	require.True(t, isUpstreamQuotaError(quotaErr))
+	require.False(t, shouldAutoDisableAfterRelayError(quotaErr))
+
+	ordinaryAuthErr := types.NewErrorWithStatusCode(
+		errors.New("invalid credential"),
+		types.ErrorCodeBadResponseStatusCode,
+		http.StatusUnauthorized,
+	)
+	require.True(t, service.ShouldDisableChannel(ordinaryAuthErr))
+	require.False(t, isUpstreamQuotaError(ordinaryAuthErr))
+	require.True(t, shouldAutoDisableAfterRelayError(ordinaryAuthErr))
 }

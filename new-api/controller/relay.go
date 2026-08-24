@@ -385,7 +385,8 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 	// 不要使用context获取渠道信息，异步处理时可能会出现渠道信息不一致的情况
 	// Quota/rate-limit failures affect only this model route. The persistent
 	// channel and ability switches remain entirely administrator-controlled.
-	if setting.ChannelCooldownEnabled && isUpstreamQuotaError(err) {
+	quotaError := isUpstreamQuotaError(err)
+	if setting.ChannelCooldownEnabled && quotaError {
 		model.SetChannelModelCooldown(
 			channelError.ChannelId,
 			common.GetContextKeyString(c, constant.ContextKeyOriginalModel),
@@ -393,7 +394,10 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		)
 	}
 	// do not use context to get channel info, there may be inconsistent channel info when processing asynchronously
-	if service.ShouldDisableChannel(err) && channelError.AutoBan {
+	// The legacy auto-ban feature is intentionally bypassed for quota failures:
+	// otherwise the route-scoped cooldown above could be followed by a persistent
+	// whole-channel disable when a production database enables auto-ban.
+	if shouldAutoDisableAfterRelayError(err) && channelError.AutoBan {
 		gopool.Go(func() {
 			service.DisableChannel(channelError, err.ErrorWithStatusCode())
 		})
@@ -459,6 +463,10 @@ func isUpstreamQuotaError(err *types.NewAPIError) bool {
 		}
 	}
 	return false
+}
+
+func shouldAutoDisableAfterRelayError(err *types.NewAPIError) bool {
+	return !isUpstreamQuotaError(err) && service.ShouldDisableChannel(err)
 }
 
 func RelayMidjourney(c *gin.Context) {

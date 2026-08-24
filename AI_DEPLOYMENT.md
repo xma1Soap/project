@@ -21,7 +21,7 @@ The NewAPI build has these station-specific defaults:
 - `channels.status` and `abilities.enabled` are not modified by request-time failover;
 - transparent retry occurs only before response bytes reach the client. An active stream is never replayed or spliced.
 
-Database options can override process defaults. Before and after deployment, inspect `RetryTimes`, `ChannelCooldownEnabled`, and `ChannelCooldownSeconds` in the `options` table without changing them silently.
+Database options can override process defaults. Before and after deployment, inspect `RetryTimes`, `ChannelCooldownEnabled`, `ChannelCooldownSeconds`, `AutomaticDisableChannelEnabled`, `AutomaticEnableChannelEnabled`, and the automatic-disable keyword/status-code rules in the `options` table without changing them silently. Request-time quota failover bypasses the legacy whole-channel auto-ban path, but the legacy settings still affect non-quota failures.
 
 ## 3. Identify the actual production host
 
@@ -149,10 +149,16 @@ sudo install -d -o channel-controller -g channel-controller -m 0750 /opt/channel
 sudo python3 -m venv /opt/channel-quota-controller/venv
 sudo /opt/channel-quota-controller/venv/bin/pip install /path/to/channel-quota-controller
 sudo install -d -m 0750 /etc/channel-quota-controller
+sudo install -m 0640 channel-quota-controller/examples/gensoukyou.glm.production-dry-run.json /etc/channel-quota-controller/config.json
+sudo test -f /etc/channel-quota-controller/gensoukyou.env || sudo install -o root -g root -m 0600 /dev/null /etc/channel-quota-controller/gensoukyou.env
+# Populate gensoukyou.env through a root-only editor or secret manager. It must contain:
+# GENSOUKYOU_ADMIN_ACCESS_TOKEN=...
+# GENSOUKYOU_NEW_API_BASE_URL=https://gensoukyou.xyz
+# GENSOUKYOU_NEW_API_USER_ID=<root user id>
 sudo install -d -o channel-controller -g channel-controller -m 0750 /var/lib/channel-quota-controller /var/log/channel-quota-controller /run/channel-quota-controller
 sudo install -m 0644 channel-quota-controller/systemd/channel-quota-controller.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now channel-quota-controller.service
 ```
 
-Keep `dry_run=true`. Do not add `--confirm-live-actions` or `--confirm-production-host gensoukyou.xyz` until a full quota cycle has been observed, every managed route has explicit opt-in tagging, at least two fallback routes remain, reset times are confirmed, and a manual rollback drill has succeeded.
+The installed unit now invokes the station-specific HTTP adapter rather than the local JSON simulator. Keep `dry_run=true`. The unit deliberately omits `--confirm-live-actions` and `--confirm-production-host gensoukyou.xyz`, so it remains forced into dry-run even if the JSON file is edited incorrectly. Do not add both flags until a full quota cycle has been observed, every managed route has explicit opt-in tagging, at least two fallback routes remain, reset times are confirmed, and a manual rollback drill has succeeded.

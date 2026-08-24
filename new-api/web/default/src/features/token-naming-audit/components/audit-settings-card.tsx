@@ -65,10 +65,9 @@ export function AuditSettingsCard({
     setTokensText((config.whitelist_tokens || []).join(', '))
     setUsersText((config.whitelist_users || []).join(', '))
     setActions({
-      severe: 'ban',
-      medium: 'report',
-      review: 'report',
-      ...config.actions,
+      severe: config.actions?.severe ?? 'ban',
+      medium: config.actions?.medium ?? 'report',
+      review: config.actions?.review ?? 'report',
     })
     setThreshold(config.rules?.missing_elements_threshold ?? 2)
     const { missing_elements_threshold: _th, ...rest } = config.rules || ({} as never)

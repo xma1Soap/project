@@ -43,7 +43,7 @@ BACKUP="$(sudo cat /var/backups/new-api-production/original_backup)"
 sudo operations/scripts/rollback-production.sh --full "$BACKUP"
 ```
 
-The rollback script first creates a pre-rollback rescue snapshot. If the restored version fails health checks, it puts the pre-rollback state back automatically.
+The rollback script first creates a pre-rollback rescue snapshot. If any command fails or the restored version fails its health/database checks, an exit trap puts the pre-rollback binary and, in full mode, data directory back before restarting the container.
 
 ## 4. Diagnose by symptom
 
@@ -101,14 +101,23 @@ Use the VPS provider console. Verify the exact hostname and filesystem paths bef
 
 ## 5. Controller recovery
 
-The Python controller is secondary. Disable it without touching NewAPI:
+The quota controller is secondary. For the Go agent, stop it without touching NewAPI:
+
+```bash
+sudo systemctl disable --now gensoukyou-quota-agent.service
+sudo journalctl -u gensoukyou-quota-agent.service --since '-30 minutes' --no-pager
+```
+
+Follow `AI_PLUGIN_RECOVERY.md`. Restore only routes whose preserved state proves `owned_by_agent=true`. A pending action must be reconciled against the exact current route before ownership is assumed.
+
+For a legacy Python controller, disable it separately:
 
 ```bash
 sudo systemctl disable --now channel-quota-controller.service
 sudo journalctl -u channel-quota-controller.service --since '-30 minutes' --no-pager
 ```
 
-If it ever ran live, preserve `/var/lib/channel-quota-controller/state.json` and `/var/log/channel-quota-controller/audit.jsonl`. Restore only routes whose state records prove `owned_by_controller=true`; never enable a route that an administrator or another system disabled.
+If it ever ran live, preserve `/var/lib/channel-quota-controller/state.json` and `/var/log/channel-quota-controller/audit.jsonl`. Restore only routes whose state records prove `owned_by_controller=true`; never enable a route that an administrator or another system disabled. Never run the Python and Go controllers concurrently.
 
 ## 6. Completion criteria
 

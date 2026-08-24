@@ -21,7 +21,7 @@ The NewAPI build has these station-specific defaults:
 - `channels.status` and `abilities.enabled` are not modified by request-time failover;
 - transparent retry occurs only before response bytes reach the client. An active stream is never replayed or spliced.
 
-Database options can override process defaults. Before and after deployment, inspect `RetryTimes`, `ChannelCooldownEnabled`, and `ChannelCooldownSeconds` in the `options` table without changing them silently.
+Database options can override process defaults. Before and after deployment, inspect `RetryTimes`, `ChannelCooldownEnabled`, `ChannelCooldownSeconds`, `AutomaticDisableChannelEnabled`, `AutomaticEnableChannelEnabled`, and the automatic-disable keyword/status-code rules in the `options` table without changing them silently. Request-time quota failover bypasses the legacy whole-channel auto-ban path, but the legacy settings still affect non-quota failures.
 
 ## 3. Identify the actual production host
 
@@ -139,9 +139,9 @@ Repeat the read-only SQLite audit from step 5. Counts and `channels.status` / `a
 
 Observe health, HTTP 5xx, 429 rate, latency, memory, and container restarts for at least 15 minutes. The request-time cooldown is in memory, so process restart intentionally clears it.
 
-## 9. Optional quota controller
+## 9. Legacy quota-controller prototype
 
-The Python controller is not required for immediate request failover. It is for longer quota windows and scheduled route ownership. Deploy it initially in dry-run only:
+`channel-quota-controller/` remains as the tested policy prototype and migration reference. Do not install it for a new deployment and never run it alongside the Go agent. Existing installations may keep it in dry-run while planning migration:
 
 ```bash
 sudo useradd --system --home /opt/channel-quota-controller --shell /usr/sbin/nologin channel-controller || true
@@ -149,10 +149,33 @@ sudo install -d -o channel-controller -g channel-controller -m 0750 /opt/channel
 sudo python3 -m venv /opt/channel-quota-controller/venv
 sudo /opt/channel-quota-controller/venv/bin/pip install /path/to/channel-quota-controller
 sudo install -d -m 0750 /etc/channel-quota-controller
+sudo install -m 0640 channel-quota-controller/examples/gensoukyou.glm.production-dry-run.json /etc/channel-quota-controller/config.json
+sudo test -f /etc/channel-quota-controller/gensoukyou.env || sudo install -o root -g root -m 0600 /dev/null /etc/channel-quota-controller/gensoukyou.env
+# Populate gensoukyou.env through a root-only editor or secret manager. It must contain:
+# GENSOUKYOU_ADMIN_ACCESS_TOKEN=...
+# GENSOUKYOU_NEW_API_BASE_URL=https://gensoukyou.xyz
+# GENSOUKYOU_NEW_API_USER_ID=<root user id>
 sudo install -d -o channel-controller -g channel-controller -m 0750 /var/lib/channel-quota-controller /var/log/channel-quota-controller /run/channel-quota-controller
 sudo install -m 0644 channel-quota-controller/systemd/channel-quota-controller.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now channel-quota-controller.service
 ```
 
-Keep `dry_run=true`. Do not add `--confirm-live-actions` or `--confirm-production-host gensoukyou.xyz` until a full quota cycle has been observed, every managed route has explicit opt-in tagging, at least two fallback routes remain, reset times are confirmed, and a manual rollback drill has succeeded.
+The installed unit now invokes the station-specific HTTP adapter rather than the local JSON simulator. Keep `dry_run=true`. The unit deliberately omits `--confirm-live-actions` and `--confirm-production-host gensoukyou.xyz`, so it remains forced into dry-run even if the JSON file is edited incorrectly. Do not add both flags until a full quota cycle has been observed, every managed route has explicit opt-in tagging, at least two fallback routes remain, reset times are confirmed, and a manual rollback drill has succeeded.
+
+## 10. Static quota plugin
+
+New deployments use `quota-agent/`, a dependency-free static Go executable. It consumes a single root-only bulk snapshot per polling interval, stores bounded local state, distinguishes transient rate limits from hard quota exhaustion, estimates capacity only from confirmed complete cycles, and can own only explicitly configured channel/model routes.
+
+Build and test locally:
+
+```bash
+cd quota-agent
+go test -count=1 ./...
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
+  -o ../gensoukyou-quota-agent ./cmd/gensoukyou-quota-agent
+```
+
+Use the checksummed release installer and the complete AI execution contract in `AI_PLUGIN_INSTALL.md`. The visual wizard binds only to loopback and is reached through an SSH tunnel. The shipped systemd unit omits both live confirmation flags, sets `MemoryMax=64M` and `CPUQuota=10%`, and starts in dry-run.
+
+The first cycle observed after installing mid-cycle is deliberately marked incomplete and excluded from automatic capacity estimation. A complete estimate begins only after a scheduled or manually requested reset has been confirmed by successful recovery probes.

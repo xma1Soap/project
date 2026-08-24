@@ -29,6 +29,21 @@ import {
   resolveChatUrl,
 } from '@/features/chat/lib/chat-links'
 
+const CHAT_IFRAME_SANDBOX =
+  'allow-scripts allow-same-origin allow-forms allow-popups allow-modals'
+
+function isSafeExternalChatUrl(value: string): boolean {
+  try {
+    const url = new URL(value, window.location.origin)
+    return (
+      (url.protocol === 'https:' || url.protocol === 'http:') &&
+      url.origin !== window.location.origin
+    )
+  } catch {
+    return false
+  }
+}
+
 export const Route = createFileRoute('/_authenticated/chat/$chatId')({
   loader: async ({ params }) => {
     if (!Number.isInteger(Number(params.chatId))) {
@@ -71,6 +86,10 @@ function ChatRouteComponent() {
       serverAddress,
     })
   }, [activeKey, isWebLink, preset, requiresActiveKey, serverAddress])
+  const iframeUrlAllowed = useMemo(
+    () => Boolean(iframeSrc) && isSafeExternalChatUrl(iframeSrc),
+    [iframeSrc]
+  )
 
   if (!preset) {
     return (
@@ -122,7 +141,10 @@ function ChatRouteComponent() {
     )
   }
 
-  if (requiresActiveKey && (isError || !activeKey || !iframeSrc)) {
+  if (
+    requiresActiveKey &&
+    (isError || !activeKey || !iframeSrc || !iframeUrlAllowed)
+  ) {
     const message =
       error instanceof Error
         ? error.message
@@ -137,7 +159,7 @@ function ChatRouteComponent() {
     )
   }
 
-  if (!requiresActiveKey && !iframeSrc) {
+  if (!requiresActiveKey && (!iframeSrc || !iframeUrlAllowed)) {
     return (
       <div className='flex h-full flex-col items-center justify-center p-6'>
         <Alert variant='destructive' className='max-w-xl'>
@@ -159,6 +181,7 @@ function ChatRouteComponent() {
       className='h-full w-full border-0'
       allow='camera; microphone'
       title={`Chat preset: ${preset.name}`}
+      sandbox={CHAT_IFRAME_SANDBOX}
     />
   )
 }

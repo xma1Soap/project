@@ -8,6 +8,12 @@
 **/*.sqlite3
 **/*.log
 **/*.pid
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/id_rsa
+**/id_ed25519
 **/__pycache__/
 **/*.py[cod]
 **/.pytest_cache/
@@ -23,3 +29,5 @@
 *.zip
 *.bin
 new-api/new-api
+new-api/new-api-*
+quota-agent/gensoukyou-quota-agent*

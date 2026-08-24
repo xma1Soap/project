@@ -210,11 +210,11 @@ export const WebPreviewBody = ({
   return (
     <div className='flex-1'>
       <iframe
+        {...props}
         className={cn('size-full', className)}
-        sandbox='allow-scripts allow-same-origin allow-forms allow-popups allow-presentation'
+        sandbox='allow-scripts allow-forms allow-popups allow-presentation'
         src={(src ?? url) || undefined}
         title={t('Preview')}
-        {...props}
       />
       {loading}
     </div>

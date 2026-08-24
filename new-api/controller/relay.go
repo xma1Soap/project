@@ -235,6 +235,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		if newAPIError == nil {
+			model.RecordChannelModelSuccess(channel.Id, relayInfo.OriginModelName)
 			relayInfo.LastError = nil
 			return
 		}
@@ -381,11 +382,28 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 }
 
 func processChannelError(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError) {
-	logger.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, common.LocalLogPreview(err.Error())))
 	// 不要使用context获取渠道信息，异步处理时可能会出现渠道信息不一致的情况
 	// Quota/rate-limit failures affect only this model route. The persistent
 	// channel and ability switches remain entirely administrator-controlled.
-	if setting.ChannelCooldownEnabled && isUpstreamQuotaError(err) {
+	quotaError := isUpstreamQuotaError(err)
+	// Quota failures are intentionally represented by bounded in-memory counters.
+	// Writing every 429 to container logs recreated the same disk-pressure problem
+	// that the database-log exclusion below was designed to avoid.
+	if !quotaError {
+		logger.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, common.LocalLogPreview(err.Error())))
+	}
+	telemetryKind := model.QuotaTelemetryOther
+	if isHardQuotaExhaustion(err) {
+		telemetryKind = model.QuotaTelemetryHardQuota
+	} else if quotaError {
+		telemetryKind = model.QuotaTelemetryRateLimit
+	}
+	model.RecordChannelModelError(
+		channelError.ChannelId,
+		common.GetContextKeyString(c, constant.ContextKeyOriginalModel),
+		telemetryKind,
+	)
+	if setting.ChannelCooldownEnabled && quotaError {
 		model.SetChannelModelCooldown(
 			channelError.ChannelId,
 			common.GetContextKeyString(c, constant.ContextKeyOriginalModel),
@@ -393,7 +411,10 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		)
 	}
 	// do not use context to get channel info, there may be inconsistent channel info when processing asynchronously
-	if service.ShouldDisableChannel(err) && channelError.AutoBan {
+	// The legacy auto-ban feature is intentionally bypassed for quota failures:
+	// otherwise the route-scoped cooldown above could be followed by a persistent
+	// whole-channel disable when a production database enables auto-ban.
+	if shouldAutoDisableAfterRelayError(err) && channelError.AutoBan {
 		gopool.Go(func() {
 			service.DisableChannel(channelError, err.ErrorWithStatusCode())
 		})
@@ -459,6 +480,28 @@ func isUpstreamQuotaError(err *types.NewAPIError) bool {
 		}
 	}
 	return false
+}
+
+func isHardQuotaExhaustion(err *types.NewAPIError) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	for _, marker := range []string{
+		"insufficient_quota", "quota exhausted", "daily quota", "daily limit",
+		"billing hard limit", "insufficient balance", "余额不足", "额度耗尽",
+		"每日限额", "配额耗尽",
+	} {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return err.StatusCode == http.StatusPaymentRequired &&
+		(strings.Contains(message, "quota") || strings.Contains(message, "balance"))
+}
+
+func shouldAutoDisableAfterRelayError(err *types.NewAPIError) bool {
+	return !isUpstreamQuotaError(err) && service.ShouldDisableChannel(err)
 }
 
 func RelayMidjourney(c *gin.Context) {

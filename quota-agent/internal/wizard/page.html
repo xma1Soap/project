@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>幻想乡额度 Agent 安装向导</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b1020;--card:#151d33;--line:#2d3958;--text:#e8edff;--muted:#9aa8c7;--accent:#85a9ff;--danger:#ff8b9a}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#17274b,var(--bg) 45%);font:14px/1.5 system-ui,sans-serif;color:var(--text)}
+    main{width:min(1180px,94vw);margin:32px auto 80px}h1{font-size:28px;margin:0 0 6px}.muted{color:var(--muted)}
+    section,.route{background:color-mix(in srgb,var(--card) 93%,transparent);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:16px;box-shadow:0 14px 40px #0004}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.wide{grid-column:1/-1}
+    label{display:grid;gap:5px;color:var(--muted)}input,select{width:100%;padding:10px 11px;border-radius:9px;border:1px solid var(--line);background:#0c1428;color:var(--text)}
+    input[type=checkbox]{width:auto;accent-color:var(--accent)}.check{display:flex;align-items:center;gap:8px;margin-top:24px}
+    button{border:0;border-radius:9px;padding:10px 15px;background:var(--accent);color:#081020;font-weight:700;cursor:pointer}.secondary{background:#273554;color:var(--text)}.danger{background:#5b2631;color:#ffdfe5}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.route-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.status{white-space:pre-wrap;margin-top:12px;padding:12px;border-radius:10px;background:#09101f;border:1px solid var(--line);min-height:44px}
+    code{background:#09101f;padding:2px 5px;border-radius:5px}@media(max-width:650px){main{margin-top:18px}.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body><main>
+  <h1>幻想乡公益站 · 渠道额度 Agent</h1>
+  <div class="muted">向导只写入配置，不保存管理员令牌；正式启停还需要命令行双重确认。</div>
+  <section><h2>基础设置</h2><div class="grid">
+    <label>NewAPI 地址<input id="base_url" value="http://127.0.0.1:3000"></label>
+    <label>Root 用户 ID<input id="user_id" type="number" min="1" value="1"></label>
+    <label>固定令牌环境变量<input id="token_env" value="GENSOUKYOU_NEW_API_ACCESS_TOKEN" readonly></label>
+    <label>轮询间隔（秒）<input id="poll" type="number" min="10" value="60"></label>
+    <label>请求超时（秒）<input id="timeout" type="number" min="1" value="10"></label>
+    <label>状态文件<input id="state_path" value="/var/lib/gensoukyou-quota-agent/state.json"></label>
+    <label>锁文件<input id="lock_path" value="/run/gensoukyou-quota-agent/agent.lock"></label>
+    <label class="check"><input id="dry_run" type="checkbox" checked>仅观察（强烈建议首次安装保持勾选）</label>
+  </div></section>
+  <section><div class="route-head"><h2>受管渠道</h2><button id="add" class="secondary">添加渠道</button></div><div id="routes"></div></section>
+  <div class="toolbar"><button id="test">测试只读连接</button><button id="save">保存配置</button></div>
+  <div id="status" class="status muted">等待操作。</div>
+</main>
+<script>
+const token=new URLSearchParams(location.search).get('token')||'';let policies=[];
+const defaults=()=>({channel_id:1,group:'default',model:'',required_tag:'quota-agent',route_pool:'',quota_pool:'',quota_mode:'estimate',known_capacity:0,action:'observe',hard_error_threshold:3,min_independent_routes_after_disable:1,reset:{mode:'after_days',after_days:1,fixed_at:'',time:'00:00',timezone:'Asia/Shanghai',month:1,day:1,probe_successes:2,probe_interval_seconds:300}});
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(){const root=document.querySelector('#routes');root.innerHTML='';policies.forEach((p,i)=>{const el=document.createElement('div');el.className='route';el.innerHTML=`<div class="route-head"><strong>渠道策略 ${i+1}</strong><button class="danger remove" data-i="${i}">移除</button></div><div class="grid">
+<label>渠道 ID<input data-k="channel_id" type="number" min="1" value="${esc(p.channel_id)}"></label><label>分组<input data-k="group" value="${esc(p.group)}"></label><label>模型<input data-k="model" value="${esc(p.model)}"></label><label>必需标签<input data-k="required_tag" value="${esc(p.required_tag)}"></label>
+<label>可替代路由池<input data-k="route_pool" value="${esc(p.route_pool)}"></label><label>共享额度池<input data-k="quota_pool" value="${esc(p.quota_pool)}"></label><label>额度模式<select data-k="quota_mode"><option value="estimate">自动估算</option><option value="known">已知额度</option><option value="ignore">不监测</option></select></label><label>已知额度<input data-k="known_capacity" type="number" min="0" value="${esc(p.known_capacity)}"></label>
+<label>动作<select data-k="action"><option value="observe">仅观察</option><option value="route">自动启停单路由</option></select></label><label>连续硬错误阈值<input data-k="hard_error_threshold" type="number" min="2" value="${esc(p.hard_error_threshold)}"></label><label>禁用后最少独立备用池<input data-k="min_independent_routes_after_disable" type="number" min="0" value="${esc(p.min_independent_routes_after_disable)}"></label>
+<label>重置计划<select data-r="mode"><option value="manual">手动</option><option value="after_days">X 天后</option><option value="fixed_at">固定日期时间</option><option value="daily">每日</option><option value="annual">每年 X 月 X 日</option></select></label><label>X 天后<input data-r="after_days" type="number" min="1" value="${esc(p.reset.after_days)}"></label><label>固定时间（RFC3339）<input data-r="fixed_at" placeholder="2026-09-01T08:00:00+08:00" value="${esc(p.reset.fixed_at)}"></label><label>时区<input data-r="timezone" value="${esc(p.reset.timezone)}"></label><label>时刻<input data-r="time" type="time" value="${esc(p.reset.time)}"></label><label>月份<input data-r="month" type="number" min="1" max="12" value="${esc(p.reset.month)}"></label><label>日期<input data-r="day" type="number" min="1" max="31" value="${esc(p.reset.day)}"></label><label>恢复成功次数<input data-r="probe_successes" type="number" min="1" value="${esc(p.reset.probe_successes)}"></label><label>恢复探测间隔（秒）<input data-r="probe_interval_seconds" type="number" min="30" value="${esc(p.reset.probe_interval_seconds)}"></label></div>`;
+root.appendChild(el);el.querySelector('[data-k=quota_mode]').value=p.quota_mode;el.querySelector('[data-k=action]').value=p.action;el.querySelector('[data-r=mode]').value=p.reset.mode;});bind();}
+function bind(){document.querySelectorAll('.route').forEach((el,i)=>{el.querySelectorAll('[data-k]').forEach(x=>x.oninput=()=>policies[i][x.dataset.k]=x.type==='number'?Number(x.value):x.value);el.querySelectorAll('[data-r]').forEach(x=>x.oninput=()=>policies[i].reset[x.dataset.r]=x.type==='number'?Number(x.value):x.value)});document.querySelectorAll('.remove').forEach(b=>b.onclick=()=>{policies.splice(Number(b.dataset.i),1);render()})}
+function cfg(){return {version:1,dry_run:document.querySelector('#dry_run').checked,poll_interval_seconds:Number(document.querySelector('#poll').value),state_path:document.querySelector('#state_path').value,lock_path:document.querySelector('#lock_path').value,new_api:{base_url:document.querySelector('#base_url').value,user_id:Number(document.querySelector('#user_id').value),access_token_env:document.querySelector('#token_env').value,timeout_seconds:Number(document.querySelector('#timeout').value)},channels:policies}}
+async function call(path){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Setup-Token':token},body:JSON.stringify(cfg())});const j=await r.json().catch(()=>({success:false,message:'响应不是 JSON'}));document.querySelector('#status').textContent=(j.success?'成功：':'失败：')+(j.message||'');return j}
+document.querySelector('#add').onclick=()=>{policies.push(defaults());render()};document.querySelector('#test').onclick=()=>call('/api/test');document.querySelector('#save').onclick=()=>call('/api/save');
+fetch('/api/current',{headers:{'X-Setup-Token':token}}).then(r=>r.json()).then(j=>{if(!j.success)throw Error(j.message);const c=j.data;document.querySelector('#base_url').value=c.new_api.base_url;document.querySelector('#user_id').value=c.new_api.user_id;document.querySelector('#token_env').value=c.new_api.access_token_env;document.querySelector('#poll').value=c.poll_interval_seconds;document.querySelector('#timeout').value=c.new_api.timeout_seconds;document.querySelector('#state_path').value=c.state_path;document.querySelector('#lock_path').value=c.lock_path;document.querySelector('#dry_run').checked=c.dry_run;policies=c.channels;render()}).catch(e=>{policies=[defaults()];render();document.querySelector('#status').textContent='载入默认配置：'+e.message});
+</script></body></html>

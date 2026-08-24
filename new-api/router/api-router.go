@@ -233,6 +233,7 @@ func SetApiRouter(router *gin.Engine) {
 			channelRoute.GET("/models", controller.ChannelListModels)
 			channelRoute.GET("/models_enabled", controller.EnabledListModels)
 			channelRoute.GET("/ops", controller.GetChannelOps)
+			channelRoute.GET("/quota-snapshot", middleware.RootAuth(), controller.GetChannelQuotaSnapshot)
 			channelRoute.GET("/routes/:id", middleware.RootAuth(), controller.GetChannelRoutes)
 			channelRoute.GET("/:id", controller.GetChannel)
 			channelRoute.POST("/:id/key", middleware.RootAuth(), middleware.CriticalRateLimit(), middleware.DisableCache(), middleware.SecureVerificationRequired(), controller.GetChannelKey)

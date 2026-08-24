@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "dry_run": true,
+  "poll_interval_seconds": 60,
+  "state_path": "/var/lib/gensoukyou-quota-agent/state.json",
+  "lock_path": "/run/gensoukyou-quota-agent/agent.lock",
+  "new_api": {
+    "base_url": "http://127.0.0.1:3000",
+    "user_id": 1,
+    "access_token_env": "GENSOUKYOU_NEW_API_ACCESS_TOKEN",
+    "timeout_seconds": 10
+  },
+  "channels": [
+    {
+      "channel_id": 1001,
+      "group": "default",
+      "model": "example-model",
+      "required_tag": "quota-agent",
+      "route_pool": "example-model-routes",
+      "quota_pool": "unknown-upstream-account-a",
+      "quota_mode": "estimate",
+      "action": "observe",
+      "hard_error_threshold": 3,
+      "min_independent_routes_after_disable": 1,
+      "reset": {
+        "mode": "after_days",
+        "after_days": 1,
+        "time": "00:00",
+        "timezone": "Asia/Shanghai",
+        "probe_successes": 2,
+        "probe_interval_seconds": 300
+      }
+    },
+    {
+      "channel_id": 1002,
+      "group": "default",
+      "model": "example-model",
+      "required_tag": "quota-agent",
+      "route_pool": "example-model-routes",
+      "quota_pool": "known-upstream-account-b",
+      "quota_mode": "known",
+      "known_capacity": 1000000,
+      "action": "observe",
+      "hard_error_threshold": 3,
+      "min_independent_routes_after_disable": 1,
+      "reset": {
+        "mode": "manual",
+        "time": "00:00",
+        "timezone": "Asia/Shanghai",
+        "probe_successes": 2,
+        "probe_interval_seconds": 300
+      }
+    },
+    {
+      "channel_id": 1003,
+      "group": "default",
+      "model": "example-model",
+      "required_tag": "quota-agent",
+      "route_pool": "example-model-routes",
+      "quota_pool": "excluded-upstream-account",
+      "quota_mode": "ignore",
+      "action": "observe",
+      "hard_error_threshold": 3,
+      "min_independent_routes_after_disable": 1,
+      "reset": {
+        "mode": "manual",
+        "time": "00:00",
+        "timezone": "Asia/Shanghai",
+        "probe_successes": 2,
+        "probe_interval_seconds": 300
+      }
+    }
+  ]
+}

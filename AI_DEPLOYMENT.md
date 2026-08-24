@@ -139,9 +139,9 @@ Repeat the read-only SQLite audit from step 5. Counts and `channels.status` / `a
 
 Observe health, HTTP 5xx, 429 rate, latency, memory, and container restarts for at least 15 minutes. The request-time cooldown is in memory, so process restart intentionally clears it.
 
-## 9. Optional quota controller
+## 9. Legacy quota-controller prototype
 
-The Python controller is not required for immediate request failover. It is for longer quota windows and scheduled route ownership. Deploy it initially in dry-run only:
+`channel-quota-controller/` remains as the tested policy prototype and migration reference. Do not install it for a new deployment and never run it alongside the Go agent. Existing installations may keep it in dry-run while planning migration:
 
 ```bash
 sudo useradd --system --home /opt/channel-quota-controller --shell /usr/sbin/nologin channel-controller || true
@@ -162,3 +162,20 @@ sudo systemctl enable --now channel-quota-controller.service
 ```
 
 The installed unit now invokes the station-specific HTTP adapter rather than the local JSON simulator. Keep `dry_run=true`. The unit deliberately omits `--confirm-live-actions` and `--confirm-production-host gensoukyou.xyz`, so it remains forced into dry-run even if the JSON file is edited incorrectly. Do not add both flags until a full quota cycle has been observed, every managed route has explicit opt-in tagging, at least two fallback routes remain, reset times are confirmed, and a manual rollback drill has succeeded.
+
+## 10. Static quota plugin
+
+New deployments use `quota-agent/`, a dependency-free static Go executable. It consumes a single root-only bulk snapshot per polling interval, stores bounded local state, distinguishes transient rate limits from hard quota exhaustion, estimates capacity only from confirmed complete cycles, and can own only explicitly configured channel/model routes.
+
+Build and test locally:
+
+```bash
+cd quota-agent
+go test -count=1 ./...
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
+  -o ../gensoukyou-quota-agent ./cmd/gensoukyou-quota-agent
+```
+
+Use the checksummed release installer and the complete AI execution contract in `AI_PLUGIN_INSTALL.md`. The visual wizard binds only to loopback and is reached through an SSH tunnel. The shipped systemd unit omits both live confirmation flags, sets `MemoryMax=64M` and `CPUQuota=10%`, and starts in dry-run.
+
+The first cycle observed after installing mid-cycle is deliberately marked incomplete and excluded from automatic capacity estimation. A complete estimate begins only after a scheduled or manually requested reset has been confirmed by successful recovery probes.

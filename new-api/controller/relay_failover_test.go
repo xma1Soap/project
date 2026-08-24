@@ -31,6 +31,21 @@ func TestIsUpstreamQuotaError(t *testing.T) {
 	}
 }
 
+func TestHardQuotaExhaustionDoesNotTreatGeneric429AsDailyExhaustion(t *testing.T) {
+	transient := types.NewErrorWithStatusCode(
+		errors.New("rate limit exceeded; retry later"),
+		types.ErrorCodeBadResponseStatusCode,
+		http.StatusTooManyRequests,
+	)
+	hard := types.NewErrorWithStatusCode(
+		errors.New("daily quota exhausted"),
+		types.ErrorCodeBadResponseStatusCode,
+		http.StatusTooManyRequests,
+	)
+	require.False(t, isHardQuotaExhaustion(transient))
+	require.True(t, isHardQuotaExhaustion(hard))
+}
+
 func TestShouldRetryNeverSplicesAnActiveStream(t *testing.T) {
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err := types.NewErrorWithStatusCode(

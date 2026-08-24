@@ -1,0 +1,84 @@
+name: quota-plugin-release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'plugin-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+          cache-dependency-path: |
+            new-api/go.sum
+            quota-agent/go.mod
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Build NewAPI frontends
+        working-directory: new-api/web
+        run: |
+          bun install --frozen-lockfile
+          cd default
+          DISABLE_ESLINT_PLUGIN=true VITE_REACT_APP_VERSION="$(cat ../../VERSION)" bun run build
+          cd ../classic
+          VITE_REACT_APP_VERSION="$(cat ../../VERSION)" bun run build
+      - name: Test backend and agent
+        run: |
+          (cd new-api && go test -count=1 ./...)
+          (cd quota-agent && go test -count=1 ./...)
+      - name: Build release bundle
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: '0'
+        run: |
+          set -eu
+          root="dist/gensoukyou-plugin-linux-${GOARCH}"
+          install -d "$root/bin" "$root/packaging" "$root/operations" "$root/examples" "$root/docs"
+          (cd quota-agent && go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" -o "../$root/bin/gensoukyou-quota-agent" ./cmd/gensoukyou-quota-agent)
+          (cd new-api && GOEXPERIMENT=greenteagc go build -trimpath -ldflags "-s -w -X github.com/QuantumNous/new-api/common.Version=$(cat VERSION)" -o "../$root/bin/new-api" .)
+          cp quota-agent/packaging/*.sh quota-agent/packaging/*.service quota-agent/packaging/*.example "$root/packaging/"
+          cp quota-agent/examples/config.json "$root/examples/"
+          cp operations/scripts/canary-production.sh "$root/operations/"
+          cp operations/scripts/deploy-production.sh "$root/operations/"
+          cp operations/scripts/rollback-production.sh "$root/operations/"
+          cp AI_PLUGIN_INSTALL.md AI_PLUGIN_RECOVERY.md AI_DEPLOYMENT.md AI_FAILURE_RECOVERY.md "$root/docs/"
+          chmod 0755 "$root/bin/"* "$root/packaging/"*.sh "$root/operations/"*.sh
+          (cd "$root" && find bin packaging operations examples docs -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          tar -C dist -czf "dist/gensoukyou-plugin-linux-${GOARCH}.tar.gz" "gensoukyou-plugin-linux-${GOARCH}"
+          (cd dist && sha256sum "gensoukyou-plugin-linux-${GOARCH}.tar.gz" > "gensoukyou-plugin-linux-${GOARCH}.tar.gz.sha256")
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gensoukyou-plugin-linux-${{ matrix.arch }}
+          path: |
+            dist/gensoukyou-plugin-linux-${{ matrix.arch }}.tar.gz
+            dist/gensoukyou-plugin-linux-${{ matrix.arch }}.tar.gz.sha256
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/plugin-v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gensoukyou-plugin-linux-*
+          merge-multiple: true
+          path: dist
+      - name: Publish checksummed release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes

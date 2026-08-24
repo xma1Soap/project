@@ -1,0 +1,35 @@
+{
+  "deployment_version": "gensoukyou-custom-v8.13-route-api-20260824",
+  "validation_stage": "source_reviewed_and_locally_tested",
+  "capabilities": {
+    "channel_status_mutation": true,
+    "channel_model_mutation": true,
+    "specific_route_probe": true,
+    "filtered_event_query": false
+  },
+  "evidence": {
+    "channel_model_mutation": {
+      "source_files": [
+        "model/ability_route.go",
+        "controller/channel-route.go",
+        "router/api-router.go"
+      ],
+      "function_or_endpoint": "PUT /api/channel/route",
+      "scope": "channel_id + group + model",
+      "compare_and_swap": true,
+      "whole_channel_fallback": false,
+      "memory_cache_respects_ability_enabled": true,
+      "test_instance_verified": false
+    },
+    "specific_route_probe": {
+      "source_file": "controller/channel-test.go",
+      "function_or_endpoint": "GET /api/channel/test/:id?model=...",
+      "structured_status_code": true,
+      "test_instance_verified": false
+    },
+    "filtered_event_query": {
+      "verified": false,
+      "reason": "Production 429 errors are not persisted; the controller uses sanitized low-frequency active probes."
+    }
+  }
+}

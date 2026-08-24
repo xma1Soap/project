@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "channel-quota-controller"
+version = "0.1.0"
+description = "Fail-closed quota circuit breaker for AI gateway channel routes"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+channel-quota-controller = "channel_quota_controller.cli:main"
+gensoukyou-channel-controller = "channel_quota_controller.gensoukyou_cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,36 @@
+{
+  "deployment_version": "PENDING_FROM_STATION_OWNER",
+  "capabilities": {
+    "channel_status_mutation": false,
+    "channel_model_mutation": false,
+    "specific_route_probe": false,
+    "filtered_event_query": false
+  },
+  "evidence": {
+    "channel_snapshot": {
+      "source_file": "PENDING",
+      "function_or_endpoint": "PENDING",
+      "redacted_sample": "PENDING"
+    },
+    "channel_status_mutation": {
+      "source_file": "PENDING",
+      "function_or_endpoint": "PENDING",
+      "cache_sync_verified": false
+    },
+    "channel_model_mutation": {
+      "source_file": "PENDING",
+      "function_or_endpoint": "PENDING",
+      "ability_sync_verified": false,
+      "cache_sync_verified": false
+    },
+    "specific_route_probe": {
+      "source_file": "PENDING",
+      "function_or_endpoint": "PENDING"
+    },
+    "filtered_event_query": {
+      "source_file": "PENDING",
+      "function_or_endpoint": "PENDING",
+      "pagination_verified": false
+    }
+  }
+}

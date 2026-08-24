@@ -1,0 +1,39 @@
+{
+  "deployment_version": "custom-v8.13-source-archive-20260824",
+  "capabilities": {
+    "channel_status_mutation": true,
+    "channel_model_mutation": false,
+    "specific_route_probe": true,
+    "filtered_event_query": false
+  },
+  "evidence": {
+    "channel_snapshot": {
+      "source_file": "controller/channel.go + model/channel.go",
+      "function_or_endpoint": "GET /api/channel/:id",
+      "verified": true
+    },
+    "channel_status_mutation": {
+      "source_file": "controller/channel.go:UpdateChannel + model/channel.go:Update",
+      "function_or_endpoint": "PUT /api/channel/ with id and status",
+      "ability_sync_verified": true,
+      "cache_sync_verified": true
+    },
+    "channel_model_mutation": {
+      "source_file": "model/ability.go",
+      "function_or_endpoint": "none",
+      "verified": false,
+      "reason": "No atomic admin endpoint; rewriting channel.models would recreate all abilities and risks concurrent configuration loss."
+    },
+    "specific_route_probe": {
+      "source_file": "controller/channel-test.go:TestChannel",
+      "function_or_endpoint": "GET /api/channel/test/:id?model=...",
+      "verified": true
+    },
+    "filtered_event_query": {
+      "source_file": "controller/log.go + controller/relay.go:processChannelError",
+      "function_or_endpoint": "GET /api/log/?type=5&channel=...&model_name=...",
+      "verified": false,
+      "reason": "The API filters correctly, but processChannelError deliberately does not persist HTTP 429 errors, so it is incomplete for daily-quota detection."
+    }
+  }
+}

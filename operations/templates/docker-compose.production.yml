@@ -1,0 +1,19 @@
+services:
+  new-api:
+    image: ${NEW_API_IMAGE:-calciumion/new-api:latest}
+    container_name: new-api
+    restart: always
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - /opt/new-api/data:/data
+      - /opt/new-api/logs:/app/logs
+      - /opt/new-api/new-api.bin:/new-api:ro
+    environment:
+      - TZ=Asia/Shanghai
+      - VERSION=v8.13
+      - NODE_NAME=new-api-gcp
+      - NO_PROXY=127.0.0.1,localhost,172.19.0.1
+      - BATCH_UPDATE_ENABLED=true
+      - ERROR_LOG_ENABLED=true
+    command: --log-dir /app/logs

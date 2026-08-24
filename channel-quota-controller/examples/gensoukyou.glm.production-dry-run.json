@@ -1,0 +1,40 @@
+{
+  "dry_run": true,
+  "poll_interval_seconds": 60,
+  "routes": [
+    {
+      "channel_id": 86,
+      "group": "default",
+      "model": "glm-5.3",
+      "required_tag": "auto-quota-glm",
+      "pool_id": "gensoukyou-glm-5.3",
+      "reset_time": "00:00",
+      "timezone": "Asia/Shanghai",
+      "quota_status_codes": [402, 403, 429, 502],
+      "quota_message_patterns": ["exceed quota limit", "余额不足", "账号已临时冻结"],
+      "consecutive_errors": 3,
+      "window_seconds": 1200,
+      "probe_interval_seconds": 300,
+      "probe_successes_required": 2,
+      "action_scope": "channel_model",
+      "min_active_routes_after_disable": 2
+    },
+    {
+      "channel_id": 87,
+      "group": "default",
+      "model": "glm-5.3",
+      "required_tag": "auto-quota-glm",
+      "pool_id": "gensoukyou-glm-5.3",
+      "reset_time": "00:00",
+      "timezone": "Asia/Shanghai",
+      "quota_status_codes": [402, 403, 429, 502],
+      "quota_message_patterns": ["exceed quota limit", "余额不足", "账号已临时冻结"],
+      "consecutive_errors": 3,
+      "window_seconds": 1200,
+      "probe_interval_seconds": 300,
+      "probe_successes_required": 2,
+      "action_scope": "channel_model",
+      "min_active_routes_after_disable": 2
+    }
+  ]
+}

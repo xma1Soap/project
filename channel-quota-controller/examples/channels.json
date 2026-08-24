@@ -1,0 +1,24 @@
+[
+  {
+    "id": 1001,
+    "name": "Example daily-quota route",
+    "enabled": true,
+    "tags": ["auto-quota", "quota-daily"],
+    "models": ["provider-v4p-free"],
+    "disabled_models": [],
+    "probe_results": {
+      "provider-v4p-free": true
+    }
+  },
+  {
+    "id": 1002,
+    "name": "Example pool fallback route",
+    "enabled": true,
+    "tags": ["auto-quota", "quota-daily"],
+    "models": ["provider-v4p-free"],
+    "disabled_models": [],
+    "probe_results": {
+      "provider-v4p-free": true
+    }
+  }
+]

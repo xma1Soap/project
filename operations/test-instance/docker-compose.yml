@@ -1,0 +1,20 @@
+services:
+  new-api-test:
+    image: calciumion/new-api:latest
+    container_name: new-api-test
+    restart: always
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - /opt/new-api-test/data:/data
+      - /opt/new-api-test/logs:/app/logs
+      - /opt/new-api-test/new-api-test.bin:/new-api:ro
+    environment:
+      - TZ=Asia/Shanghai
+      - ERROR_LOG_ENABLED=true
+      - BATCH_UPDATE_ENABLED=true
+      - NODE_NAME=new-api-test
+      - VERSION=v8.13
+      - NO_PROXY=127.0.0.1,localhost
+    command: --log-dir /app/logs
+    network_mode: bridge

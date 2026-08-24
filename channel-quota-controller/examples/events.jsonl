@@ -1,0 +1,4 @@
+{"timestamp":"2099-01-01T00:00:01+08:00","channel_id":1001,"model":"provider-v4p-free","status_code":429,"message":"daily quota exceeded"}
+{"timestamp":"2099-01-01T00:00:02+08:00","channel_id":1001,"model":"provider-v4p-free","status_code":429,"message":"daily quota exceeded"}
+{"timestamp":"2099-01-01T00:00:03+08:00","channel_id":1001,"model":"provider-v4p-free","status_code":429,"message":"daily quota exceeded"}
+
